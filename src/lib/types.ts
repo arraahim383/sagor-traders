@@ -87,7 +87,7 @@ export type Offer = {
   starts_on: string | null;
   ends_on: string | null;
   is_active: boolean;
-  product?: Pick<Product, "id" | "name" | "slug"> | null;
+  product?: (Pick<Product, "id" | "name" | "slug"> & { image_url?: string | null }) | null;
 };
 
 export type Inquiry = {

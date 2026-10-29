@@ -91,7 +91,7 @@ export const getLiveOffers = cache(async (): Promise<Offer[]> => {
   // Row-level security only returns offers that are active and within their dates.
   const { data, error } = await createPublicClient()
     .from("offers")
-    .select("*, product:products(id,name,slug)")
+    .select("*, product:products(id,name,slug,image_url)")
     .order("ends_on", { ascending: true, nullsFirst: false });
   if (error) {
     warn("offers", error);
