@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { BadgePercent, ExternalLink, Inbox, LayoutDashboard, LogOut, Menu, Package, Settings, Shapes, Tags, UserCog, Users, X } from "lucide-react";
+import { BadgePercent, ExternalLink, Inbox, LayoutDashboard, LogOut, Menu, Package, Settings, Shapes, ShoppingCart, Tags, UserCog, Users, X } from "lucide-react";
 import { Logo } from "@/components/decor";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/business", label: "Business", icon: ShoppingCart },
   { href: "/admin/inquiries", label: "Inquiries", icon: Inbox },
   { href: "/admin/products", label: "Products", icon: Package },
   { href: "/admin/brands", label: "Brands", icon: Tags },
@@ -25,7 +26,7 @@ export function AdminNav({ email, role, signOut }: { email: string; role: string
   const isActive = (href: string) => (href === "/admin" ? path === "/admin" : path.startsWith(href));
   return (
     <>
-      <div className="sticky top-0 z-40 flex items-center justify-between bg-forest-950 px-5 py-3 text-white lg:hidden">
+      <div className="sticky top-0 z-40 flex items-center justify-between bg-forest-950 px-5 py-3 text-white lg:hidden print:hidden">
         <span className="text-[1.6rem]"><Logo text="Sagor Traders" light /></span>
         <button onClick={() => setOpen((v) => !v)} aria-label="Menu" aria-expanded={open} className="rounded-lg p-2">
           {open ? <X className="size-6" /> : <Menu className="size-6" />}
@@ -33,7 +34,7 @@ export function AdminNav({ email, role, signOut }: { email: string; role: string
       </div>
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col bg-forest-950 text-white transition-transform lg:sticky lg:top-0 lg:h-screen lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col bg-forest-950 text-white transition-transform lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 print:hidden",
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
