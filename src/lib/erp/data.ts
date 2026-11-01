@@ -70,8 +70,8 @@ async function balances(supabase: SupabaseClient, type: string) {
 
 /** Every retailer (active only unless `all`); there are more than the API's 1,000-row page. */
 export function loadRetailers(supabase: SupabaseClient, all = false) {
-  return selectAll<{ id: number; code: string; name: string }>((a, b) => {
-    const q = supabase.from("erp_retailers").select("id, code, name");
+  return selectAll<{ id: number; code: string; name: string; route_id: number | null }>((a, b) => {
+    const q = supabase.from("erp_retailers").select("id, code, name, route_id");
     return (all ? q : q.eq("active", true)).order("code").order("id").range(a, b);
   });
 }

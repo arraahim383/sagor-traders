@@ -123,7 +123,7 @@ export type PromoState = {
   declined: Set<string>;
 };
 
-function award(
+export function award(
   key: string,
   offer_id: number,
   free_options: FreeOption[],

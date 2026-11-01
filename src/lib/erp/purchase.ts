@@ -1,4 +1,6 @@
 import { round2 } from "./money";
+import { award, type PromoLine, type PromoState } from "./sales";
+import type { OrderWideOffer, Promo } from "./types";
 
 export type PurchaseLineInput = { carton: number; piece: number; per: number; buyPrice: number; freeQty?: number };
 
@@ -24,3 +26,33 @@ export function grnTotals(subTotal: number, commission: number, transport: numbe
 
 /** PO vs GRN: pending = ordered − received (never below zero). */
 export const poPending = (ordered: number, received: number) => Math.max(0, ordered - received);
+
+/**
+ * Promotional offers on a purchase (PO, or goods receive not against a PO): the same engine as sales —
+ * per-product offers by qty or value, plus whole-order value offers, recomputed from scratch each time.
+ */
+export function purchasePromoLines(
+  lines: { productId: number; qty: number; subtotal: number }[],
+  byProduct: Map<number, Promo>,
+  orderWide: OrderWideOffer[],
+  state: PromoState,
+): PromoLine[] {
+  const out: PromoLine[] = [];
+  for (const l of lines) {
+    const promo = byProduct.get(l.productId);
+    if (!promo?.free_options?.length) continue;
+    const multiples =
+      promo.basis === "value"
+        ? promo.target_amount && l.subtotal >= promo.target_amount ? Math.floor(l.subtotal / promo.target_amount) : 0
+        : promo.target_qty && l.qty >= promo.target_qty ? Math.floor(l.qty / promo.target_qty) : 0;
+    const line = award(String(l.productId), promo.offer_id, promo.free_options, multiples, state, false);
+    if (line) out.push(line);
+  }
+  const orderTotal = lines.reduce((s, l) => s + l.subtotal, 0);
+  for (const offer of orderWide) {
+    if (!offer.target_amount || orderTotal < offer.target_amount) continue;
+    const line = award(`ow${offer.offer_id}`, offer.offer_id, offer.free_options, Math.floor(orderTotal / offer.target_amount), state, true);
+    if (line) out.push(line);
+  }
+  return out;
+}

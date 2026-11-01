@@ -10,10 +10,12 @@ import type { PostResult, PurchaseInput } from "@/lib/erp/purchase-payload";
 /** Saves a purchase order or a goods receive. Quantities use each product's pieces-per-carton from the database. */
 export async function savePurchase(input: PurchaseInput): Promise<PostResult> {
   const { supabase } = await requireErp();
-  const ids = input.lines.map((l) => l.productId);
+  const freeLines = (input.freeLines ?? []).filter((f) => f.qty > 0);
+  const ids = [...input.lines.map((l) => l.productId), ...freeLines.map((f) => f.productId)];
   if (!input.supplierId) return { ok: false, error: "Select a supplier." };
-  const { data: prods } = await supabase.from("erp_products").select("id, per, supplier_id").in("id", ids.length ? ids : [-1]);
+  const { data: prods } = await supabase.from("erp_products").select("id, per, supplier_id, sale_price").in("id", ids.length ? ids : [-1]);
   const per = new Map((prods ?? []).map((p) => [p.id, p.per as number]));
+  const salePrice = new Map((prods ?? []).map((p) => [p.id, Number(p.sale_price)]));
   const lines = input.lines.filter((l) => per.has(l.productId) && (l.carton + l.piece > 0 || l.free > 0));
   if (!lines.length) return { ok: false, error: "Add at least one line with quantity." };
 
@@ -24,7 +26,10 @@ export async function savePurchase(input: PurchaseInput): Promise<PostResult> {
         date: input.date,
         supplier_id: input.supplierId,
         remark: input.remark,
-        lines: lines.map((l) => ({ product_id: l.productId, carton: l.carton, piece: l.piece, per: per.get(l.productId)!, buy_price: l.buy })),
+        lines: [
+          ...lines.map((l) => ({ product_id: l.productId, carton: l.carton, piece: l.piece, per: per.get(l.productId)!, buy_price: l.buy })),
+          ...freeLines.filter((f) => per.has(f.productId)).map((f) => ({ product_id: f.productId, carton: 0, piece: f.qty, per: per.get(f.productId)!, buy_price: 0, is_free: true })),
+        ],
       }),
     );
     if (res.ok) revalidatePath("/erp", "layout");
@@ -45,7 +50,11 @@ export async function savePurchase(input: PurchaseInput): Promise<PostResult> {
     advanceAvailable: Math.max(0, bal),
     account: input.account,
     mode: input.payMode,
-    lines: lines.map((l) => ({ product_id: l.productId, carton: l.carton, piece: l.piece, per: per.get(l.productId)!, free_qty: l.free, buy_price: l.buy, sale_price: l.sale })),
+    lines: [
+      ...lines.map((l) => ({ product_id: l.productId, carton: l.carton, piece: l.piece, per: per.get(l.productId)!, free_qty: l.free, buy_price: l.buy, sale_price: l.sale })),
+      // Offers only apply when not receiving against a PO (the PO already carried them).
+      ...(input.poId ? [] : freeLines.filter((f) => per.has(f.productId)).map((f) => ({ product_id: f.productId, carton: 0, piece: f.qty, per: per.get(f.productId)!, free_qty: 0, buy_price: 0, sale_price: salePrice.get(f.productId) ?? 0, is_free: true }))),
+    ],
   });
   const res = await post(supabase, payload);
   if (res.ok) {

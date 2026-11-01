@@ -7,7 +7,7 @@ import { saveBadDebt } from "../accounts/actions";
 
 export const metadata = { title: "Bad debts" };
 
-export default async function BadDebtsPage({ searchParams }: { searchParams: Promise<{ saved?: string; error?: string; percent?: string }> }) {
+export default async function BadDebtsPage({ searchParams }: { searchParams: Promise<{ saved?: string; error?: string; percent?: string; mode?: string; fixed?: string }> }) {
   const sp = await searchParams;
   const { supabase } = await requireErp();
   const [parties, { data: allowance }, { data: history }, retailers, stf] = await Promise.all([
@@ -23,7 +23,10 @@ export default async function BadDebtsPage({ searchParams }: { searchParams: Pro
   const receivables = (parties ?? []).reduce((s, p) => s + Number(p.balance), 0);
   const current = -Number(allowance?.balance ?? 0);
   const percent = Number(sp.percent ?? 2);
-  const est = allowanceEstimate(receivables, "percent", percent, current);
+  // Rushda: target as a percent of total receivables (default 2%) or a fixed amount.
+  const mode = sp.mode === "fixed" ? "fixed" : "percent";
+  const fixed = Number(sp.fixed ?? 0);
+  const est = allowanceEstimate(receivables, mode, mode === "fixed" ? fixed : percent, current);
   const nameOf = (t: string, id: number) => (t === "retailer" ? (ret.data ?? []).find((r) => r.id === id)?.name : (stf.data ?? []).find((s) => s.id === id)?.name) ?? `#${id}`;
 
   return (
@@ -34,12 +37,16 @@ export default async function BadDebtsPage({ searchParams }: { searchParams: Pro
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-3">
         <Stat label="Total receivables" value={money(receivables)} tone="dark" />
         <Stat label="Current allowance" value={money(current)} />
-        <Stat label={`Target at ${percent}%`} value={money(est.target)} />
+        <Stat label={mode === "fixed" ? "Fixed target" : `Target at ${percent}%`} value={money(est.target)} />
       </div>
       <div className="grid gap-6 lg:grid-cols-2">
         <Card title="Record allowance estimate">
-          <form method="get" className="mb-3 flex items-end gap-2">
-            <label><span className={labelCls}>Percent of receivables</span><input type="number" name="percent" step="any" defaultValue={percent} className={fieldCls} /></label>
+          <form method="get" className="mb-3 flex flex-wrap items-end gap-2">
+            <label><span className={labelCls}>Target by</span>
+              <select name="mode" defaultValue={mode} className={fieldCls}><option value="percent">% of receivables</option><option value="fixed">Fixed amount</option></select>
+            </label>
+            <label><span className={labelCls}>Percent</span><input type="number" name="percent" step="any" defaultValue={percent} className={fieldCls} /></label>
+            <label><span className={labelCls}>Fixed (৳)</span><input type="number" name="fixed" step="any" defaultValue={fixed || ""} className={fieldCls} /></label>
             <button className="rounded-full border-2 border-forest-800 px-4 py-2 text-sm font-bold text-forest-800">Recalculate</button>
           </form>
           <form action={saveBadDebt} className="space-y-3">

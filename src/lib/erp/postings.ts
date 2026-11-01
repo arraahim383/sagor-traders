@@ -67,7 +67,7 @@ export function purchaseOrderPayload(i: { date: string; supplier_id: number; rem
 }
 
 // ── Goods receive ────────────────────────────────────────────────────────────
-export type GRNLineIn = { product_id: number; carton: number; piece: number; per: number; free_qty: number; buy_price: number; sale_price: number };
+export type GRNLineIn = { product_id: number; carton: number; piece: number; per: number; free_qty: number; buy_price: number; sale_price: number; is_free?: boolean };
 /**
  * Stock in at the buy price (free pieces at zero cost), supplier credited with the payable.
  * Fix vs Rushda: commission and transport are posted to their own accounts instead of being folded into
@@ -89,8 +89,10 @@ export function goodsReceivePayload(i: {
 }): PostPayload & { totals: ReturnType<typeof grnTotals> } {
   const rows = i.lines
     .map((l) => {
-      const c = purchaseLine({ carton: l.carton, piece: l.piece, per: l.per, buyPrice: l.buy_price, freeQty: l.free_qty });
-      return { product_id: l.product_id, carton: l.carton, piece: l.piece, qty: c.qty, free_qty: c.freeQty, buy_price: l.buy_price, sale_price: l.sale_price, subtotal: round2(c.subtotal) };
+      // Promotional free lines (Rushda: piece qty, buy price 0, is_free) come in as zero-cost stock.
+      const buy = l.is_free ? 0 : l.buy_price;
+      const c = purchaseLine({ carton: l.carton, piece: l.piece, per: l.per, buyPrice: buy, freeQty: l.free_qty });
+      return { product_id: l.product_id, carton: l.carton, piece: l.piece, qty: c.qty, free_qty: c.freeQty, buy_price: buy, sale_price: l.sale_price, subtotal: round2(c.subtotal), is_free: !!l.is_free };
     })
     .filter((r) => r.qty > 0 || r.free_qty > 0);
   const subTotal = rows.reduce((s, r) => s + r.subtotal, 0);
@@ -296,5 +298,34 @@ export function journalVoucherPayload(i: { date: string; narration: string; line
     narration: i.narration,
     doc: { table: "erp_journals_manual", prefix: "JV", row: {} },
     journal: i.lines.filter((l) => l.debit > 0 || l.credit > 0).map((l) => ({ account: l.account, debit: round2(l.debit), credit: round2(l.credit) })),
+  };
+}
+
+// ── Opening entries (new records added after cut-over) ──────────────────────
+/**
+ * A party's opening balance, booked against Owner's Capital. Positive = the normal side for that party:
+ * retailer/SR/DSR owe us (debit), we owe a supplier or a staff member's salary (credit). Negative flips it.
+ */
+export function openingBalancePayload(i: { date: string; party_type: PartyType; party_id: number; amount: number; name?: string }): PostPayload {
+  const party = { type: i.party_type, id: i.party_id };
+  const owesUs = i.party_type === "retailer" || i.party_type === "sr" || i.party_type === "dsr";
+  const debitParty = owesUs === i.amount > 0;
+  const amt = Math.abs(i.amount);
+  return {
+    date: i.date,
+    narration: `Opening balance${i.name ? `: ${i.name}` : ""}`,
+    doc: { table: "erp_journals_manual", prefix: "OPEN", row: {} },
+    journal: debitParty ? [dr(PARTY_ACCOUNT[i.party_type], amt, party), cr("ownersCapital", amt)] : [dr("ownersCapital", amt), cr(PARTY_ACCOUNT[i.party_type], amt, party)],
+  };
+}
+
+/** Opening stock for a newly added product: a FIFO lot at the buy price, Dr Inventory / Cr Owner's Capital. */
+export function openingStockPayload(i: { date: string; product_id: number; qty: number; rate: number; sale: number }): PostPayload {
+  return {
+    date: i.date,
+    narration: "Opening stock",
+    doc: { table: "erp_stock_adjustments", prefix: "ADJ", number_column: "adj_no", row: { date: i.date, product_id: i.product_id, direction: "in", qty: i.qty, rate: i.rate, amount: round2(i.qty * i.rate), reason: "Opening stock" } },
+    stock: [{ op: "in", product_id: i.product_id, qty: i.qty, rate: i.rate, sale: i.sale }],
+    journal: [dr("inventory", i.qty * i.rate), cr("ownersCapital", i.qty * i.rate)],
   };
 }

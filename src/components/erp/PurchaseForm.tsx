@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { CheckCircle2, Search } from "lucide-react";
-import { grnTotals, purchaseLine } from "@/lib/erp/purchase";
+import { CheckCircle2, Gift, Search, X } from "lucide-react";
+import { grnTotals, purchaseLine, purchasePromoLines } from "@/lib/erp/purchase";
+import type { PromoState } from "@/lib/erp/sales";
+import type { OrderWideOffer, Promo } from "@/lib/erp/types";
 import { int, num } from "@/lib/erp/money";
 import type { CashAccount } from "@/lib/erp/accounting";
 import type { PostResult, PurchaseInput } from "@/lib/erp/purchase-payload";
@@ -27,12 +29,15 @@ export function PurchaseForm({
   suppliers,
   products,
   openPOs = [],
+  promos,
   onSave,
 }: {
   mode: "po" | "grn";
   suppliers: { id: number; name: string; balance: number }[];
   products: PurchaseProduct[];
   openPOs?: OpenPO[];
+  /** Live purchase offers (applies to "purchase" or "both"). */
+  promos?: { byProduct: [number, Promo][]; orderWide: OrderWideOffer[] };
   onSave: (i: PurchaseInput) => Promise<PostResult>;
 }) {
   const grn = mode === "grn";
@@ -51,6 +56,8 @@ export function PurchaseForm({
   const [payMode, setPayMode] = useState("Cash");
   const [msg, setMsg] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [saving, start] = useTransition();
+  const [promo, setPromo] = useState<PromoState>({ selected: {}, overrides: {}, declined: new Set() });
+  const byProduct = useMemo(() => new Map(promos?.byProduct ?? []), [promos]);
 
   const supplier = suppliers.find((s) => s.id === supplierId);
   // Supplier ledger is credit-positive when we owe them; a debit balance is money paid in advance.
@@ -64,6 +71,8 @@ export function PurchaseForm({
   const entered = products.filter((p) => lines[p.id]);
   const subTotal = entered.reduce((s, p) => s + calc(p).subtotal, 0);
   const totals = grnTotals(subTotal, num(commission), num(transport), num(paid), fullPaid, advance);
+  // Offers apply to a PO, or to a goods receive that isn't against a PO.
+  const promoLines = grn && poId ? [] : purchasePromoLines(entered.map((p) => ({ productId: p.id, qty: calc(p).qty, subtotal: calc(p).subtotal })), byProduct, promos?.orderWide ?? [], promo);
   const set = (p: PurchaseProduct, patch: Partial<Line>) => setLines((x) => ({ ...x, [p.id]: { ...line(p), ...patch } }));
 
   function pickPO(id: number | null) {
@@ -86,10 +95,12 @@ export function PurchaseForm({
       return { productId: p.id, carton: l.carton, piece: l.piece, free: l.free, buy: num(l.buy), sale: num(l.sale) };
     });
     start(async () => {
-      const res = await onSave({ mode, date, supplierId, invoiceNo, poId, remark, lines: payloadLines, commission: num(commission), transport: num(transport), paid: num(paid), fullPaid, account, payMode });
+      const freeLines = promoLines.map((l) => ({ productId: l.selected_product_id, qty: l.qty }));
+      const res = await onSave({ mode, date, supplierId, invoiceNo, poId, remark, lines: payloadLines, freeLines, commission: num(commission), transport: num(transport), paid: num(paid), fullPaid, account, payMode });
       if (!res.ok) return setMsg({ tone: "error", text: res.error });
       setMsg({ tone: "ok", text: `${res.number} saved${grn ? " — stock received and books posted" : ""}.` });
       setLines({});
+      setPromo({ selected: {}, overrides: {}, declined: new Set() });
       setCommission("");
       setTransport("");
       setPaid("");
@@ -183,6 +194,25 @@ export function PurchaseForm({
         </section>
 
         <aside className="space-y-4 xl:sticky xl:top-6 xl:self-start">
+          {promoLines.length > 0 && (
+            <section className="space-y-3 rounded-2xl bg-white p-5 shadow-card">
+              <p className="flex items-center gap-2 text-sm font-extrabold text-forest-800"><Gift className="size-4" /> Free from offers</p>
+              {promoLines.map((l) => (
+                <div key={l.key} className="flex items-center gap-2 text-sm">
+                  {l.free_options.length > 1 ? (
+                    <select value={l.selected_product_id} onChange={(e) => setPromo((s) => ({ ...s, selected: { ...s.selected, [l.key]: Number(e.target.value) }, overrides: { ...s.overrides, [l.key]: undefined } }))} className={cn(fieldCls, "flex-1")}>
+                      {l.free_options.map((o) => <option key={o.product_id} value={o.product_id}>{o.name}</option>)}
+                    </select>
+                  ) : (
+                    <span className="flex-1 font-semibold">{l.free_options[0].name}</span>
+                  )}
+                  <input type="number" min={0} value={l.qty} onChange={(e) => setPromo((s) => ({ ...s, overrides: { ...s.overrides, [l.key]: num(e.target.value) } }))} className={cn(cellCls, "w-20")} aria-label="Free qty" />
+                  <button onClick={() => setPromo((s) => ({ ...s, declined: new Set(s.declined).add(`${l.key}:${l.multiples}`) }))} aria-label="Remove offer" className="rounded-lg p-1 text-ink-400 hover:bg-red-50 hover:text-red-600"><X className="size-4" /></button>
+                </div>
+              ))}
+              <p className="text-[11px] text-ink-400">Free lines come in at zero cost. Formula qty = times the target is reached × free qty.</p>
+            </section>
+          )}
           <section className="space-y-3 rounded-2xl bg-white p-5 shadow-card">
             <div className="flex items-baseline justify-between"><span className="text-sm font-bold text-ink-600">Sub total</span><span className="text-2xl font-extrabold tabular-nums text-forest-900">{fmt(totals.subTotal)}</span></div>
             {grn && (

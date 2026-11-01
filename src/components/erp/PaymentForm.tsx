@@ -8,7 +8,7 @@ import type { PostResult } from "@/lib/erp/purchase-payload";
 import { cn } from "@/lib/utils";
 import { fieldCls, labelCls } from "./ui";
 
-export type PayParty = { id: number; name: string; balance: number };
+export type PayParty = { id: number; name: string; balance: number; routeId?: number | null };
 export type PayInput = { date: string; partyType: PartyType; partyId: number; amount: number; less: number; account: CashAccount; mode: string; refInvoice: string; remark: string };
 type PartyType = "retailer" | "sr" | "dsr" | "supplier" | "staff";
 
@@ -32,12 +32,16 @@ export function PaymentForm({
   dues,
   onSave,
   initialType = "retailer",
+  routes = [],
 }: {
   parties: Record<PartyType, PayParty[]>;
   dues: { partyType: PartyType; partyId: number; invoice: string; due: number }[];
   onSave: (i: PayInput) => Promise<PostResult>;
   initialType?: PartyType;
+  /** Retailer payments can narrow the list to one route, as in Rushda. */
+  routes?: { id: number; name: string }[];
 }) {
+  const [routeId, setRouteId] = useState("");
   const [type, setType] = useState<PartyType>(initialType);
   const [partyText, setPartyText] = useState("");
   const [date, setDate] = useState(() => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dhaka" }).format(new Date()));
@@ -51,7 +55,7 @@ export function PaymentForm({
   const [saving, start] = useTransition();
 
   const tab = TABS.find((t) => t.key === type)!;
-  const list = parties[type];
+  const list = type === "retailer" && routeId ? parties.retailer.filter((p) => String(p.routeId ?? "") === routeId) : parties[type];
   const party = useMemo(() => list.find((p) => p.name === partyText), [list, partyText]);
   // Ledger balance is debit-positive: what retailers/SR/DSR owe us; suppliers/staff show as what we owe them.
   const shown = party ? (tab.dir === "out" ? -party.balance : party.balance) : 0;
@@ -91,8 +95,17 @@ export function PaymentForm({
         </p>
       )}
       <section className="grid gap-4 rounded-2xl bg-white p-6 shadow-card sm:grid-cols-2">
+        {type === "retailer" && routes.length > 0 && (
+          <label className="sm:col-span-2">
+            <span className={labelCls}>Route</span>
+            <select value={routeId} onChange={(e) => { setRouteId(e.target.value); setPartyText(""); }} className={fieldCls}>
+              <option value="">All routes</option>
+              {routes.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+            </select>
+          </label>
+        )}
         <label className="sm:col-span-2">
-          <span className={labelCls}>{tab.label} (type to search)</span>
+          <span className={labelCls}>{tab.label} (type to search{type === "retailer" && routeId ? `, ${list.length} on this route` : ""})</span>
           <input list={`parties-${type}`} value={partyText} onChange={(e) => setPartyText(e.target.value)} placeholder={`Search ${tab.label.toLowerCase()}…`} className={fieldCls} />
           <datalist id={`parties-${type}`}>{list.map((p) => <option key={p.id} value={p.name} />)}</datalist>
         </label>

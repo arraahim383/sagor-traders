@@ -8,7 +8,7 @@ export const metadata = { title: "Receive / pay" };
 export default async function NewPaymentPage({ searchParams }: { searchParams: Promise<{ type?: string }> }) {
   const { type } = await searchParams;
   const { supabase } = await requireErp();
-  const [retailers, staff, suppliers, orders, bR, bS, bD, bSup, bStaff] = await Promise.all([
+  const [retailers, staff, suppliers, orders, bR, bS, bD, bSup, bStaff, routes] = await Promise.all([
     loadRetailers(supabase),
     supabase.from("erp_staff").select("id, kind, name").eq("active", true).order("name"),
     supabase.from("erp_suppliers").select("id, name").order("name"),
@@ -20,11 +20,12 @@ export default async function NewPaymentPage({ searchParams }: { searchParams: P
     partyBalances(supabase, "dsr"),
     partyBalances(supabase, "supplier"),
     partyBalances(supabase, "staff"),
+    supabase.from("erp_routes").select("id, name").order("name"),
   ]);
   const people = staff.data ?? [];
   const map = (rows: { id: number; name: string }[], bal: Map<number, number>): PayParty[] => rows.map((r) => ({ id: r.id, name: r.name, balance: bal.get(r.id) ?? 0 }));
   const parties = {
-    retailer: map(retailers.map((r) => ({ id: r.id, name: `${r.code} - ${r.name}` })), bR),
+    retailer: map(retailers.map((r) => ({ id: r.id, name: `${r.code} - ${r.name}` })), bR).map((p, i) => ({ ...p, routeId: retailers[i].route_id })),
     sr: map(people.filter((p) => p.kind === "sr"), bS),
     dsr: map(people.filter((p) => p.kind === "dsr"), bD),
     supplier: map(suppliers.data ?? [], bSup),
@@ -33,5 +34,5 @@ export default async function NewPaymentPage({ searchParams }: { searchParams: P
   // Open invoices already net of later collections that referenced them.
   const dues = orders.map((o) => ({ partyType: o.party_type, partyId: Number(o.party_id), invoice: o.invoice_no, due: Number(o.due) }));
   const initialType = (["retailer", "sr", "dsr", "supplier", "staff"].includes(type ?? "") ? type : "retailer") as "retailer";
-  return <PaymentForm parties={parties} dues={dues} onSave={savePayment} initialType={initialType} />;
+  return <PaymentForm parties={parties} dues={dues} onSave={savePayment} initialType={initialType} routes={routes.data ?? []} />;
 }

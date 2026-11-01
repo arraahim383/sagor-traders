@@ -10,6 +10,8 @@ export type PurchaseInput = {
   poId?: number | null;
   remark?: string;
   lines: PurchaseLineInput[];
+  /** Free items from promotional offers (pieces). */
+  freeLines?: { productId: number; qty: number }[];
   commission: number;
   transport: number;
   paid: number;

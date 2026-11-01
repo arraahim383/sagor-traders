@@ -114,3 +114,53 @@ describe("Claims, stock, cash book, staff, vouchers", () => {
     expect(p.journal).toBeUndefined();
   });
 });
+
+describe("opening entries for new records", () => {
+  it("books party opening balances on the right side", async () => {
+    const { openingBalancePayload, openingStockPayload, journalBalances } = await import("./postings");
+    const r = openingBalancePayload({ date: "2026-11-02", party_type: "retailer", party_id: 5, amount: 1200 });
+    expect(r.journal).toEqual([
+      { account: "arRetailers", debit: 1200, credit: 0, party_type: "retailer", party_id: 5 },
+      { account: "ownersCapital", debit: 0, credit: 1200, party_type: null, party_id: null },
+    ]);
+    const s = openingBalancePayload({ date: "2026-11-02", party_type: "supplier", party_id: 2, amount: 5000 });
+    expect(s.journal?.[1]).toMatchObject({ account: "apSuppliers", credit: 5000, party_type: "supplier" });
+    const adv = openingBalancePayload({ date: "2026-11-02", party_type: "sr", party_id: 1, amount: -300 });
+    expect(adv.journal?.[1]).toMatchObject({ account: "srControl", credit: 300 });
+    const st = openingStockPayload({ date: "2026-11-02", product_id: 9, qty: 24, rate: 50.5, sale: 55 });
+    expect(st.stock).toEqual([{ op: "in", product_id: 9, qty: 24, rate: 50.5, sale: 55 }]);
+    for (const p of [r, s, adv, st]) expect(journalBalances(p.journal!)).toBe(true);
+  });
+
+  it("parses per-DSR incentive tiers", async () => {
+    const { parseTiers, tiersText } = await import("./masters");
+    const t = parseTiers("800000-1000000:3, 600000-800000:2, 1000000-:3.5");
+    expect(t).toEqual([{ min: 600000, max: 800000, rate: 2 }, { min: 800000, max: 1000000, rate: 3 }, { min: 1000000, max: null, rate: 3.5 }]);
+    expect(tiersText(t)).toBe("600000-800000:2, 800000-1000000:3, 1000000-:3.5");
+    expect(parseTiers("")).toBeNull();
+  });
+});
+
+describe("purchase offers", () => {
+  it("awards free goods on a PO / GRN like sales, and books them at zero cost", async () => {
+    const { purchasePromoLines } = await import("./purchase");
+    const { goodsReceivePayload, journalBalances } = await import("./postings");
+    const promo = { offer_id: 1, basis: "qty" as const, target_qty: 120, free_options: [{ product_id: 9, name: "Free item", qty: 6 }, { product_id: 10, name: "Other", qty: 4 }] };
+    const state = { selected: {}, overrides: {}, declined: new Set<string>() };
+    const lines = purchasePromoLines([{ productId: 1, qty: 250, subtotal: 25000 }], new Map([[1, promo]]), [{ offer_id: 2, target_amount: 20000, free_options: [{ product_id: 11, name: "Gift", qty: 1 }] }], state);
+    expect(lines.map((l) => [l.selected_product_id, l.multiples, l.qty])).toEqual([[9, 2, 12], [11, 1, 1]]);
+    expect(purchasePromoLines([{ productId: 1, qty: 250, subtotal: 25000 }], new Map([[1, promo]]), [], { ...state, selected: { "1": 10 } })[0].qty).toBe(8);
+    expect(purchasePromoLines([{ productId: 1, qty: 250, subtotal: 25000 }], new Map([[1, promo]]), [], { ...state, declined: new Set(["1:2"]) })).toEqual([]);
+
+    const g = goodsReceivePayload({
+      date: "2026-11-02", supplier_id: 1, commission: 0, transport: 0, paid: 0, fullPaid: false, advanceAvailable: 0, account: "cash", mode: "Cash",
+      lines: [
+        { product_id: 1, carton: 0, piece: 250, per: 12, free_qty: 0, buy_price: 100, sale_price: 110 },
+        { product_id: 9, carton: 0, piece: 12, per: 12, free_qty: 0, buy_price: 55, sale_price: 60, is_free: true },
+      ],
+    });
+    expect(g.totals.subTotal).toBe(25000);
+    expect(g.stock).toContainEqual({ op: "in", product_id: 9, qty: 12, rate: 0, sale: 60 });
+    expect(journalBalances(g.journal!)).toBe(true);
+  });
+});

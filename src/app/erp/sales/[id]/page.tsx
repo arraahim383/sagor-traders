@@ -34,6 +34,7 @@ export default async function SalesInvoicePage({ params }: { params: Promise<{ i
         </div>
         <div className="flex gap-2">
           {o.status === "draft" && <ButtonLink href={`/erp/sales/${o.id}/edit`}><Pencil className="size-4" /> Edit / finalize</ButtonLink>}
+          <ButtonLink href={`/erp/sales/${o.id}/receipt`} variant="outline">SR receipt (Bangla)</ButtonLink>
           <PrintButton label="Print invoice" />
         </div>
       </div>

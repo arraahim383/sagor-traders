@@ -32,13 +32,14 @@ export default async function ReceiveNotes({ searchParams }: { searchParams: Pro
           { label: "GRN #", get: (r) => <Link href={`/erp/receive/${r.id}`} className="font-bold text-forest-800 hover:underline">{r.grn_no}</Link> },
           { label: "Date", get: (r) => dateLabel(r.date) },
           { label: "Supplier", get: (r) => r.supplier.name },
+          { label: "Mobile", get: (r) => r.supplier.mobile ?? "—" },
           { label: "Invoice #", get: (r) => r.invoice_no ?? "—" },
           { label: "Sub total", right: true, get: (r) => money(r.subtotal) },
           { label: "Payable", right: true, get: (r) => money(r.payable) },
           { label: "Paid", right: true, get: (r) => money(r.paid) },
           { label: "Due", right: true, get: (r) => <span className={due(r) > 0.005 ? "font-bold text-red-600" : ""}>{money(due(r))}</span> },
         ]}
-        foot={[`${rows.length} notes`, "", "", "", total("subtotal"), total("payable"), total("paid"), money(rows.reduce((s, r) => s + due(r), 0))]}
+        foot={[`${rows.length} notes`, "", "", "", "", total("subtotal"), total("payable"), total("paid"), money(rows.reduce((s, r) => s + due(r), 0))]}
       />
     </div>
   );

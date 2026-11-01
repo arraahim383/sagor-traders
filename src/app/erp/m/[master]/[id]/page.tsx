@@ -42,7 +42,7 @@ export default async function MasterEdit({ params, searchParams }: { params: Pro
       {error && <Notice tone="error">{error}</Notice>}
       <form action={saveMaster.bind(null, m.key, isNew ? null : id)} className="space-y-6">
         <div className="grid gap-5 rounded-2xl bg-white p-6 shadow-card sm:grid-cols-2 sm:p-8">
-          {m.fields.map((f) => {
+          {m.fields.filter((f) => isNew || !f.newOnly).map((f) => {
             const common = { name: f.name, id: f.name, required: f.required };
             if (f.type === "checkbox")
               return (

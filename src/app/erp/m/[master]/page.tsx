@@ -49,7 +49,8 @@ export default async function MasterList({ params, searchParams }: { params: Pro
     }
     if (c.get === "margin") return `${margin(Number(row.buy_price), Number(row.sale_price)).toFixed(2)}%`;
     if (c.get === "target") return row.basis === "value" ? `৳${money(row.target_amount as number)}` : `${qty(row.target_qty as number)} pcs`;
-    if (c.get === "free") return ((row.free_options as { name: string; qty: number }[]) ?? []).map((o) => `${o.name} × ${o.qty}`).join(", ") || "—";
+    if (c.get === "free") return ((row.free_options as { name: string; qty: number }[]) ?? []).map((o) => `${o.name} × ${o.qty}`).join(" or ") || "—";
+    if (c.get === "claim_due") return money(((row.claims as { claimed: number; received: number }[]) ?? []).reduce((s, x) => s + Number(x.claimed) - Number(x.received), 0));
     const v = pick(row, c.get);
     if (c.kind === "money") return money(v as number);
     if (c.kind === "qty") return qty(v as number);
