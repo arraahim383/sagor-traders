@@ -12,10 +12,38 @@ type RateRow = { supplier_id: number | null; supplier: string; product_id: numbe
 
 const BY: Record<string, string> = { "daily-sales": "day", "dsr-sales": "dsr", "sr-sales": "sr", "route-sales": "route", "retailer-sales": "retailer", "sales-summary": "day", "invoice-profit": "invoice" };
 const LINE_BY: Record<string, string> = { "product-sales": "product", "product-profit": "product", "category-profit": "category", "supplier-profit": "supplier" };
-export const SALES_KEYS = [...Object.keys(BY), ...Object.keys(LINE_BY), "rate-diff"];
+export const SALES_KEYS = [...Object.keys(BY), ...Object.keys(LINE_BY), "rate-diff", "sales-items"];
+
+type ItemRow = { product_id: number; product: string; per: number; qty: number; return_qty: number; damage_qty: number; free_qty: number; revenue: number };
+
+/** Rushda's item-wise summary: cartons and pieces split by the product's pieces per carton. */
+async function SalesItems(c: Ctx) {
+  const data = rows<ItemRow>(await c.supabase.rpc("erp_rpt_sales_items", { p_from: c.from, p_to: c.to, p_sr: c.sr ?? null, p_route: c.route ?? null }));
+  const crt = (r: ItemRow) => Math.floor(n(r.qty) / (r.per || 1));
+  const pcs = (r: ItemRow) => n(r.qty) - crt(r) * (r.per || 1);
+  return (
+    <DataTable
+      rows={data}
+      empty="No finalized sales for these filters."
+      cols={[
+        { label: "Item", get: (r) => <b>{r.product}</b> },
+        { label: "CRT", right: true, get: (r) => crt(r) },
+        { label: "PCS", right: true, get: (r) => qty(pcs(r)) },
+        { label: "Total qty", right: true, get: (r) => qty(r.qty) },
+        { label: "Return qty", right: true, get: (r) => qty(r.return_qty) },
+        { label: "Damage qty", right: true, get: (r) => qty(r.damage_qty) },
+        { label: "Free qty", right: true, get: (r) => qty(r.free_qty) },
+        { label: "Price", right: true, get: (r) => money(avgPrice(n(r.revenue), n(r.qty)), 4) },
+        { label: "Total value", right: true, get: (r) => money(r.revenue) },
+      ]}
+      foot={["Total", total(data, crt), "", qty(total(data, (r) => n(r.qty))), qty(total(data, (r) => n(r.return_qty))), qty(total(data, (r) => n(r.damage_qty))), qty(total(data, (r) => n(r.free_qty))), "", money(total(data, (r) => n(r.revenue)))]}
+    />
+  );
+}
 
 export async function SalesReport(c: Ctx) {
   if (c.key === "rate-diff") return RateDiff(c);
+  if (c.key === "sales-items") return SalesItems(c);
   if (LINE_BY[c.key]) {
     const data = rows<LineRow>(await c.supabase.rpc("erp_rpt_sales_lines", { p_from: c.from, p_to: c.to, p_by: LINE_BY[c.key] }));
     return c.key === "product-sales" ? <ProductSales data={data} /> : <LineProfit data={data} label={LINE_BY[c.key]} />;
@@ -82,7 +110,7 @@ function InvoiceProfit({ data }: { data: OrderRow[] }) {
       rows={data}
       empty="No finalized sales in this period."
       cols={[
-        { label: "Invoice", get: (r) => <Link href={`/admin/business/sales/${r.key}`} className="font-bold text-forest-800 hover:underline">{r.label}</Link> },
+        { label: "Invoice", get: (r) => <Link href={`/erp/sales/${r.key}`} className="font-bold text-forest-800 hover:underline">{r.label}</Link> },
         { label: "Revenue", right: true, get: (r) => money(r.total) },
         { label: "COGS", right: true, get: (r) => money(r.cost) },
         { label: "Commission", right: true, get: (r) => money(r.commission) },
@@ -162,7 +190,7 @@ async function RateDiff(c: Ctx) {
               if (done.length) return <span className="text-xs font-bold text-forest-700">{done.join(", ")}</span>;
               const bal = Math.round((s.over - s.under) * 100) / 100;
               return s.id && bal < 0 ? (
-                <Link href={`/admin/business/claims?kind=${encodeURIComponent("Rate Difference")}&supplier=${s.id}&amount=${Math.abs(bal)}&from=${c.from}&to=${c.to}`} className="rounded-lg bg-forest-900 px-2.5 py-1 text-xs font-bold text-white print:hidden">
+                <Link href={`/erp/claims?kind=${encodeURIComponent("Rate Difference")}&supplier=${s.id}&amount=${Math.abs(bal)}&from=${c.from}&to=${c.to}`} className="rounded-lg bg-forest-900 px-2.5 py-1 text-xs font-bold text-white print:hidden">
                   Cash claim
                 </Link>
               ) : "—";

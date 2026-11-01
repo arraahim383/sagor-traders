@@ -49,7 +49,7 @@ export async function PurchaseReport(c: Ctx) {
         empty="Nothing received in this period."
         cols={[
           { label: "Date", get: (r) => dateLabel(r.grn.date) },
-          { label: "GRN", get: (r) => <Link href={`/admin/business/receive/${r.grn.id}`} className="font-bold text-forest-800 hover:underline">{r.grn.grn_no}</Link> },
+          { label: "GRN", get: (r) => <Link href={`/erp/receive/${r.grn.id}`} className="font-bold text-forest-800 hover:underline">{r.grn.grn_no}</Link> },
           { label: "Supplier", get: (r) => r.grn.supplier.name },
           { label: "Product", get: (r) => <b>{r.product.name}{r.is_free ? " (free)" : ""}</b> },
           { label: "Category", get: (r) => r.product.category?.name ?? "—" },
@@ -79,7 +79,7 @@ export async function PurchaseReport(c: Ctx) {
         rows={data}
         empty="No purchase orders in this period."
         cols={[
-          { label: "PO", get: (r) => <Link href={`/admin/business/purchase/${r.po.id}`} className="font-bold text-forest-800 hover:underline">{r.po.po_no}</Link> },
+          { label: "PO", get: (r) => <Link href={`/erp/purchase/${r.po.id}`} className="font-bold text-forest-800 hover:underline">{r.po.po_no}</Link> },
           { label: "Date", get: (r) => dateLabel(r.po.date) },
           { label: "Supplier", get: (r) => r.po.supplier.name },
           { label: "Product", get: (r) => <b>{r.product.name}{r.is_free ? " (free)" : ""}</b> },
@@ -132,7 +132,7 @@ export async function PurchaseReport(c: Ctx) {
       rows={grns}
       empty="Nothing received in this period."
       cols={[
-        { label: "GRN", get: (g) => <Link href={`/admin/business/receive/${g.id}`} className="font-bold text-forest-800 hover:underline">{g.grn_no}</Link> },
+        { label: "GRN", get: (g) => <Link href={`/erp/receive/${g.id}`} className="font-bold text-forest-800 hover:underline">{g.grn_no}</Link> },
         { label: "Date", get: (g) => dateLabel(g.date) },
         { label: "Supplier", get: (g) => g.supplier.name },
         { label: "Invoice", get: (g) => g.invoice_no ?? "—" },

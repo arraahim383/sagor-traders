@@ -20,7 +20,7 @@ export async function partyNames(c: Ctx, type: PartyType) {
 const labels = (t: PartyType) =>
   t === "supplier" ? { up: "Purchases", down: "Payments", bal: "Payable" } : { up: t === "retailer" ? "Sales" : "Net receivable", down: "Collections", bal: "Due" };
 
-const sourceHref = (l: Line) => (l.source === "sale" && l.source_id ? `/admin/business/sales/${l.source_id}` : l.source === "erp_goods_receipts" && l.source_id ? `/admin/business/receive/${l.source_id}` : null);
+const sourceHref = (l: Line) => (l.source === "sale" && l.source_id ? `/erp/sales/${l.source_id}` : l.source === "erp_goods_receipts" && l.source_id ? `/erp/receive/${l.source_id}` : null);
 
 export async function PartyReport(c: Ctx) {
   const type = c.key.split("-")[0] as PartyType;
@@ -43,7 +43,7 @@ export async function PartyReport(c: Ctx) {
         rows={data}
         empty="No balances in this period."
         cols={[
-          { label: "Name", get: (r) => <Link href={`/admin/business/reports/${type}-statement?party=${r.party_id}&from=${c.from}&to=${c.to}`} className="font-bold text-forest-800 hover:underline">{r.name}</Link> },
+          { label: "Name", get: (r) => <Link href={`/erp/reports/${type}-statement?party=${r.party_id}&from=${c.from}&to=${c.to}`} className="font-bold text-forest-800 hover:underline">{r.name}</Link> },
           { label: "Opening", right: true, get: (r) => money(r.open) },
           { label: L.up, right: true, get: (r) => money(up(r)) },
           { label: L.down, right: true, get: (r) => money(down(r)) },

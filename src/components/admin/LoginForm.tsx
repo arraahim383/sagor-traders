@@ -8,7 +8,7 @@ import { getBrowserClient } from "@/lib/supabase/client";
 const input =
   "h-12 w-full rounded-xl border border-ink-900/10 bg-white px-4 text-[15px] outline-none focus:border-leaf-500 focus:ring-4 focus:ring-leaf-400/20";
 
-export function LoginForm({ initialError }: { initialError?: string }) {
+export function LoginForm({ initialError, next = "/admin" }: { initialError?: string; next?: string }) {
   const router = useRouter();
   const [mode, setMode] = useState<"signin" | "signup" | "reset">("signin");
   const [email, setEmail] = useState("");
@@ -26,7 +26,7 @@ export function LoginForm({ initialError }: { initialError?: string }) {
       if (mode === "signin") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        router.replace("/admin");
+        router.replace(next);
         router.refresh();
         return;
       }

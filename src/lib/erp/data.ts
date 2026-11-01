@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { round4 } from "./money";
+import { DEFAULT_PAYROLL_POLICY } from "./people";
 import type { ErpProduct, OrderWideOffer, Promo } from "./types";
 
 export type Party = { id: number; name: string; balance: number };
@@ -145,5 +146,16 @@ export async function loadParties(supabase: SupabaseClient) {
     srs: people.filter((s) => s.kind === "sr").map(toParty(srBal)) as Party[],
     dsrs: people.filter((s) => s.kind === "dsr").map(toParty(dsrBal)) as Party[],
     retailers: retailers.map((r) => ({ id: r.id, name: `${r.code} - ${r.name}`, balance: rBal.get(r.id) ?? 0 })) as Party[],
+  };
+}
+
+/** The DSR payroll policy (Staff → DSR payroll policy), falling back to Rushda's defaults. */
+export async function loadPayrollPolicy(supabase: SupabaseClient): Promise<typeof DEFAULT_PAYROLL_POLICY> {
+  const { data } = await supabase.from("erp_settings").select("value").eq("key", "payroll_policy").maybeSingle();
+  const v = (data?.value ?? {}) as Partial<typeof DEFAULT_PAYROLL_POLICY>;
+  return {
+    basicSalary: Number(v.basicSalary ?? DEFAULT_PAYROLL_POLICY.basicSalary),
+    dailyAllowance: Number(v.dailyAllowance ?? DEFAULT_PAYROLL_POLICY.dailyAllowance),
+    tiers: Array.isArray(v.tiers) && v.tiers.length ? v.tiers : DEFAULT_PAYROLL_POLICY.tiers,
   };
 }

@@ -7,7 +7,7 @@ type Free = { product_id: number; product: string; received: number; given: numb
 
 export const STOCK_KEYS = ["stock-value", "low-stock", "free-stock", "damage-stock"];
 
-const productLink = (id: number, name: string) => <Link href={`/admin/business/stock/${id}`} className="font-bold text-forest-800 hover:underline">{name}</Link>;
+const productLink = (id: number, name: string) => <Link href={`/erp/stock/${id}`} className="font-bold text-forest-800 hover:underline">{name}</Link>;
 const cartons = (stock: number, per: number) => (per > 0 ? `${Math.floor(stock / per)} / ${qty(stock - Math.floor(stock / per) * per)}` : qty(stock));
 
 export async function StockReport(c: Ctx) {

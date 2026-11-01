@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type Ctx = { supabase: SupabaseClient; key: string; from: string; to: string; month: string; monthEnd: string; partyId?: number };
+export type Ctx = { supabase: SupabaseClient; key: string; from: string; to: string; month: string; monthEnd: string; partyId?: number; sr?: number; route?: number };
 
 export const n = (v: unknown) => Number(v ?? 0);
 export const total = <T,>(rows: T[], f: (r: T) => number) => rows.reduce((s, r) => s + f(r), 0);

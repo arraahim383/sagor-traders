@@ -10,7 +10,7 @@ export const ACCOUNT_KEYS = ["trial-balance", "profit-loss", "balance-sheet", "e
 
 const closing = (a: Acc) => n(a.opening) + n(a.debit) - n(a.credit);
 const ledger = (a: Acc, from: string, to: string) => (
-  <Link href={`/admin/business/accounts/ledger?account=${a.id}&from=${from}&to=${to}`} className="font-semibold text-forest-800 hover:underline">{a.name}</Link>
+  <Link href={`/erp/accounts/ledger?account=${a.id}&from=${from}&to=${to}`} className="font-semibold text-forest-800 hover:underline">{a.name}</Link>
 );
 const accounts = async (c: Ctx, from: string, to: string) => rows<Acc>(await c.supabase.rpc("erp_rpt_accounts", { p_from: from, p_to: to }));
 
@@ -214,7 +214,7 @@ async function DayBook(c: Ctx) {
           rows={orders}
           empty="No invoices finalized on this day."
           cols={[
-            { label: "Invoice", get: (o) => <Link href={`/admin/business/sales/${o.id}`} className="font-bold text-forest-800 hover:underline">{o.invoice_no}</Link> },
+            { label: "Invoice", get: (o) => <Link href={`/erp/sales/${o.id}`} className="font-bold text-forest-800 hover:underline">{o.invoice_no}</Link> },
             { label: "Party", get: (o) => (o.retailer ? `${o.retailer.code} - ${o.retailer.name}` : o.sr ? `SR ${o.sr.name}` : o.dsr ? `DSR ${o.dsr.name}` : "—") },
             { label: "Total", right: true, get: (o) => money(o.total) },
             { label: "Payable", right: true, get: (o) => money(o.payable) },

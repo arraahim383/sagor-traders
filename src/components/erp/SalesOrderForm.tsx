@@ -46,6 +46,7 @@ export function SalesOrderForm({
   onSave,
   dataNote = "Preview · stock & prices from Rushda, 31 Oct 2026",
   initial,
+  prefill,
 }: {
   products: ErpProduct[];
   srs: Party[];
@@ -57,15 +58,17 @@ export function SalesOrderForm({
   dataNote?: string;
   /** A saved draft being reopened. */
   initial?: SalesOrderInput & { orderId: number; invoiceNo: string };
+  /** Starting values for a new order (e.g. from an SR route session). */
+  prefill?: { type?: OrderType; srId?: number | null; dsrId?: number | null; retailerId?: number | null };
 }) {
   const [saving, startSaving] = useTransition();
   const [saved, setSaved] = useState<string | null>(null);
   const [orderId, setOrderId] = useState<number | null>(initial?.orderId ?? null);
   const [date, setDate] = useState(() => initial?.date ?? new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dhaka" }).format(new Date()));
-  const [type, setType] = useState<OrderType>(initial?.type ?? "dsr");
-  const [srId, setSrId] = useState(initial?.srId ? String(initial.srId) : "");
-  const [dsrId, setDsrId] = useState(initial?.dsrId ? String(initial.dsrId) : "");
-  const [retailerId, setRetailerId] = useState(initial?.retailerId ? String(initial.retailerId) : "");
+  const [type, setType] = useState<OrderType>(initial?.type ?? prefill?.type ?? "dsr");
+  const [srId, setSrId] = useState(initial?.srId ? String(initial.srId) : prefill?.srId ? String(prefill.srId) : "");
+  const [dsrId, setDsrId] = useState(initial?.dsrId ? String(initial.dsrId) : prefill?.dsrId ? String(prefill.dsrId) : "");
+  const [retailerId, setRetailerId] = useState(initial?.retailerId ? String(initial.retailerId) : prefill?.retailerId ? String(prefill.retailerId) : "");
   const [supplier, setSupplier] = useState("");
   const [category, setCategory] = useState("");
   const [q, setQ] = useState("");
@@ -163,7 +166,7 @@ export function SalesOrderForm({
       if (!res.ok) return setNotice(res.error);
       setSaved(`${res.invoiceNo} ${res.status === "finalized" ? "finalized — stock issued and books posted" : "saved as draft"}.`);
       if (initial) {
-        window.location.href = `/admin/business/sales/${res.orderId}`;
+        window.location.href = `/erp/sales/${res.orderId}`;
         return;
       }
       setOrderId(null);
@@ -255,6 +258,13 @@ export function SalesOrderForm({
               <select value={srId} onChange={(e) => setSrId(e.target.value)} className={field}>
                 <option value="">— Select SR —</option>
                 {srs.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </select>
+            </label>
+            <label className="sm:col-span-2">
+              <span className={label}>Shop (retailer, optional)</span>
+              <select value={retailerId} onChange={(e) => setRetailerId(e.target.value)} className={field}>
+                <option value="">— None —</option>
+                {retailers.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
             </label>
           </>

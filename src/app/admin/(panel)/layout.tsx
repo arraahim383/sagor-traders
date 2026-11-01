@@ -15,6 +15,9 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   const role = ctx.role as "admin" | "editor" | null;
 
   if (!role) {
+    // ERP-only users (added under the ERP's Users & Setup) belong in the ERP, not the website admin.
+    const { data: erpUser } = await ctx.supabase.from("erp_user_roles").select("email").eq("email", user.email!.toLowerCase()).maybeSingle();
+    if (erpUser) redirect("/erp");
     return (
       <main className="grid min-h-screen place-items-center px-5">
         <div className="max-w-lg rounded-[28px] bg-white p-8 shadow-card sm:p-10">

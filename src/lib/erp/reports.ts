@@ -1,7 +1,7 @@
 // Every report in Rushda's Report Center, grouped. `href` reports live on their own screen already.
 export type ReportFilter = "range" | "date" | "month" | "asOf" | "none";
 export type PartyType = "retailer" | "sr" | "dsr" | "supplier";
-export type ReportDef = { key: string; label: string; group: string; filter?: ReportFilter; party?: PartyType; href?: string; note?: string };
+export type ReportDef = { key: string; label: string; group: string; filter?: ReportFilter; party?: PartyType; href?: string; note?: string; extra?: ("sr" | "route")[] };
 
 export const REPORT_GROUPS = ["Sales", "Profit", "Purchase", "Stock", "Parties", "Accounts", "Staff"] as const;
 
@@ -12,9 +12,10 @@ export const REPORTS: ReportDef[] = [
   { key: "route-sales", label: "Route wise sales", group: "Sales" },
   { key: "retailer-sales", label: "Retailer wise sales", group: "Sales" },
   { key: "product-sales", label: "Product wise sales", group: "Sales" },
-  { key: "sales-summary", label: "Sales summary", group: "Sales" },
+  { key: "sales-items", label: "Sales summary (item wise)", group: "Sales", extra: ["sr", "route"] },
+  { key: "sales-summary", label: "Sales summary (deductions)", group: "Sales" },
   { key: "rate-diff", label: "Over / under rate", group: "Sales" },
-  { key: "sr-target", label: "SR target vs achievement", group: "Sales", href: "/admin/business/targets" },
+  { key: "sr-target", label: "SR target vs achievement", group: "Sales", href: "/erp/targets/achievement" },
 
   { key: "invoice-profit", label: "Invoice wise profit", group: "Profit" },
   { key: "product-profit", label: "Product wise profit", group: "Profit" },
@@ -33,7 +34,7 @@ export const REPORTS: ReportDef[] = [
   { key: "low-stock", label: "Low stock", group: "Stock", filter: "none" },
   { key: "free-stock", label: "Free stock", group: "Stock", filter: "none" },
   { key: "damage-stock", label: "Damaged, not yet claimed", group: "Stock", filter: "none" },
-  { key: "stock-card", label: "Stock card", group: "Stock", href: "/admin/business/stock", note: "Open a product to see its card" },
+  { key: "stock-card", label: "Stock card", group: "Stock", href: "/erp/stock", note: "Open a product to see its card" },
 
   { key: "retailer-statement", label: "Retailer statement", group: "Parties", party: "retailer" },
   { key: "retailer-balance", label: "Retailer balance", group: "Parties" },
@@ -48,16 +49,16 @@ export const REPORTS: ReportDef[] = [
   { key: "trial-balance", label: "Trial balance", group: "Accounts" },
   { key: "balance-sheet", label: "Balance sheet", group: "Accounts", filter: "asOf" },
   { key: "expense-report", label: "Expense report", group: "Accounts" },
-  { key: "journal", label: "Journal book", group: "Accounts", href: "/admin/business/accounts/journal" },
-  { key: "ledger", label: "Ledger", group: "Accounts", href: "/admin/business/accounts/ledger" },
-  { key: "bad-debts", label: "Bad debts / allowance", group: "Accounts", href: "/admin/business/bad-debts" },
+  { key: "journal", label: "Journal book", group: "Accounts", href: "/erp/accounts/journal" },
+  { key: "ledger", label: "Ledger", group: "Accounts", href: "/erp/accounts/ledger" },
+  { key: "bad-debts", label: "Bad debts / allowance", group: "Accounts", href: "/erp/bad-debts" },
 
   { key: "salary-sheet", label: "Salary sheet", group: "Staff", filter: "month" },
   { key: "attendance-sheet", label: "Attendance sheet", group: "Staff", filter: "month" },
-  { key: "dsr-payroll", label: "DSR payroll", group: "Staff", href: "/admin/business/staff/payroll" },
+  { key: "dsr-payroll", label: "DSR payroll", group: "Staff", href: "/erp/staff/payroll" },
 ];
 
-export const reportHref = (r: ReportDef) => r.href ?? `/admin/business/reports/${r.key}`;
+export const reportHref = (r: ReportDef) => r.href ?? `/erp/reports/${r.key}`;
 export const findReport = (key: string) => REPORTS.find((r) => r.key === key && !r.href);
 
 /** Margin % on revenue, 1 dp, as in Rushda's profit reports. */
